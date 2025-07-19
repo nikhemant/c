@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Line Chart</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 10px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 15px;
+    }
+
+    select, button, .control-group {
+      font-size: 0.9em;
+      padding: 3px;
+      max-width: 100%;
+      box-sizing: content-box;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #chart-container {
+      position: relative;
+      width: 100%;
+      max-width: 1000px;
+      height: 400px; /* Set an actual height */
+      margin: auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #progressBarContainer {
+      width: 100%;
+      background-color: #eee;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background-color: #2196F3;
+      transition: width 0.3s;
+    }
+
+    @media (max-width: 600px) {
+      #controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .control-group {
+        flex-direction: column;
+      }
+
+      #chart-container {
+        height: 300px; /* smaller screens */
+      }
+    }
+    
+    #chartcontainer {
+      max-width: 100%;
+      /* margin-top: 40px; */
+      margin: 0 3% 0 3%;
+    }
+  </style>
+</head>
+<body>
+  <div id="chartcontainer">
+  <h2>Line Chart</h2>
+    <div id="controls">
+      <label for="yAxisSelect">Select Index:</label>
+      <select id="yAxisSelect"></select>
+      <button id="animateBtn">Start Animation</button>
+      <button id="resetBtn">Reset Chart</button>
+      <button id="exportBtn">Export as PNG</button>
+    </div>
+
+    <div class="control-group">
+      <label for="speedRange">Animation Speed (ms): </label>
+      <input type="range" id="speedRange" min="10" max="1000" step="10" value="50">
+      <span id="speedValue">500</span> ms
+    </div>
+
+    <div id="chart-container">
+      <canvas id="cpiChart"></canvas>
+    </div>
+
+    <div id="progressBarContainer">
+      <div id="progressBar"></div>
+    </div>
+  </div>
+  <script>
+
+    
+    let config = '';
+    
+    async function loadConfig() {
+      // const url = new URL(window.location.href);
+      // const pathParts = url.pathname.split('/'); // ['', 'chart', '123']
+      // const id = pathParts[2]; // '123'
+
+      const url = new URL(window.location.href); // get current page URL
+      const id = url.searchParams.get("id"); 
+      // console.log(id);
+      const chartid = id; 
+      const kvApiUrl = 'https://charts-data-files-kv-json.nikhemant.workers.dev/'; // base URL of your KV-backed API
+      const response = await fetch(kvApiUrl + chartid);
+
+      if (!response.ok) {
+        throw new Error(`Failed to load config: ${response.status} ${response.statusText}`);
+      }
+
+      // const configText = await response.text();
+      // return configText;
+      config_str = await response.text();
+      config = eval('(' + config_str + ')');
+      // console.log(config.chartTitle); // Access the object
+
+    }
+
+    // Example usage:
+    loadConfig()
+      .then(() => init())
+      .catch(err => {
+        console.error("Error loading config:", err);
+      });
+
+    /*
+    // CONFIGURATION
+    const config = {
+      id: 1,
+      csvPath: 'https://charts-data-files-r2.nikhemant.workers.dev/datagovin/economy/All India Consumer Price Index (RuralUrban) upto March 2023.csv',
+      chartTitle: "All India Consumer Price Index (RuralUrban) upto March 2023 - Monthwise",
+      legendColumn: 'Sector',
+      xAxisColumn: 'Month_Year',
+      yAxisOptions: [
+        'Cereals_and_products', 'Meat_and_fish', 'Egg', 'Milk_and_products', 'Oils_and_fats',
+        'Fruits', 'Vegetables', 'Pulses_and_products', 'Sugar_and_Confectionery', 'Spices',
+        'Non_alcoholic_beverages', 'Prepared_meals__snacks__sweets_etc.', 'Food_and_beverages',
+        'Pan__tobacco_and_intoxicants', 'Clothing', 'Footwear', 'Clothing_and_footwear',
+        'Housing', 'Fuel_and_light', 'Household_goods_and_services', 'Health',
+        'Transport_and_communication', 'Recreation_and_amusement', 'Education',
+        'Personal_care_and_effects', 'Miscellaneous', 'General_index'
+      ]
+    };
+
+
+    // CONFIGURATION
+    const config = {
+      id: 2,
+      csvPath: 'https://charts-data-files-r2.nikhemant.workers.dev/datagovin/economy/All India Consumer Price Index (RuralUrban) upto March 2023 - yearwise grouped.csv',
+      chartTitle: "All India Consumer Price Index (RuralUrban) upto March 2023 - Yearwise (Avg.)",
+      legendColumn: 'Sector',
+      xAxisColumn: 'Year',
+      yAxisOptions: [
+        'Cereals_and_products', 'Meat_and_fish', 'Egg', 'Milk_and_products', 'Oils_and_fats',
+        'Fruits', 'Vegetables', 'Pulses_and_products', 'Sugar_and_Confectionery', 'Spices',
+        'Non_alcoholic_beverages', 'Prepared_meals__snacks__sweets_etc.', 'Food_and_beverages',
+        'Pan__tobacco_and_intoxicants', 'Clothing', 'Footwear', 'Clothing_and_footwear',
+        'Housing', 'Fuel_and_light', 'Household_goods_and_services', 'Health',
+        'Transport_and_communication', 'Recreation_and_amusement', 'Education',
+        'Personal_care_and_effects', 'Miscellaneous', 'General_index'
+      ]
+    };
+
+    // CONFIGURATION
+    const config = {
+      id: 3,
+      csvPath: 'https://charts-data-files-r2.nikhemant.workers.dev/datagovin/economy/State Level Consumer Price Index (RuralUrban) Up to July 2014.csv',
+      chartTitle: "State Level Consumer Price Index (RuralUrban) Up to July 2014 - Monthwise",
+      legendColumn: 'Sector',
+      xAxisColumn: 'Month_Year',
+      yAxisOptions: [
+        'Jammu_and_Kashmir','Himachal_Pradesh','Punjab','Chandigarh','Uttaranchal','Haryana','Delhi','Rajasthan','Uttar_Pradesh','Bihar','Sikkim','Arunachal_Pradesh','Nagaland','Manipur','Mizoram','Tripura','Meghalaya','Assam','West_Bengal','Jharkhand','Orissa','Chattisgarh','Madhya_Pradesh','Gujarat','Daman_and_Diu','Dadra_and_Nagar_Haveli','Maharashtra','Andhra_Pradesh','Karnataka','Goa','Lakshwadeep','Kerala','Tamil_Nadu','Pondicherry','Andaman_and_Nicobar'
+      ]
+    };
+
+
+
+    // CONFIGURATION
+    const config = {
+      id: 4,
+      csvPath: 'https://charts-data-files-r2.nikhemant.workers.dev/datagovin/economy/State Level Consumer Price Index (RuralUrban) Up to July 2014 - yearwise grouped.csv',
+      chartTitle: "State Level Consumer Price Index (RuralUrban) Up to July 2014 - Yearwise (Avg.)",
+      legendColumn: 'Sector',
+      xAxisColumn: 'Year',
+      yAxisOptions: [
+        'Jammu_and_Kashmir','Himachal_Pradesh','Punjab','Chandigarh','Uttaranchal','Haryana','Delhi','Rajasthan','Uttar_Pradesh','Bihar','Sikkim','Arunachal_Pradesh','Nagaland','Manipur','Mizoram','Tripura','Meghalaya','Assam','West_Bengal','Jharkhand','Orissa','Chattisgarh','Madhya_Pradesh','Gujarat','Daman_and_Diu','Dadra_and_Nagar_Haveli','Maharashtra','Andhra_Pradesh','Karnataka','Goa','Lakshwadeep','Kerala','Tamil_Nadu','Pondicherry','Andaman_and_Nicobar'
+      ]
+    };
+*/
+
+    // DOM elements
+    const yAxisSelect = document.getElementById('yAxisSelect');
+    const animateBtn = document.getElementById('animateBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const progressBar = document.getElementById('progressBar');
+    const speedRange = document.getElementById('speedRange');
+    const speedValue = document.getElementById('speedValue');
+    const chartCtx = document.getElementById('cpiChart').getContext('2d');
+
+    // Chart and animation state
+    let chart;
+    let rawData = [];
+    let animationInterval;
+    let isAnimating = false;
+    let currentFrame = 0;
+    let fullChartData = [];
+    let animationSpeed = parseInt(speedRange.value);
+
+    // Load CSV
+    async function loadCSVData(filePath) {
+      const response = await fetch(filePath);
+      const text = await response.text();
+      const rows = text.trim().split('\r\n').map(row => row.split(','));
+
+      const headers = rows[0];
+      const data = rows.slice(1).map(row => {
+        let obj = {};
+        headers.forEach((header, i) => {
+          obj[header] = isNaN(row[i]) ? row[i] : parseFloat(row[i]);
+        });
+        return obj;
+      });
+
+      return { headers, data };
+    }
+
+    function populateDropdown() {
+      config.yAxisOptions.forEach(col => {
+        const option = document.createElement('option');
+        option.value = col;
+        option.textContent = col.replaceAll('_', ' ');
+        yAxisSelect.appendChild(option);
+      });
+    }
+
+    function getChartData(data, selectedIndex) {
+      const legends = [...new Set(data.map(d => d[config.legendColumn]))];
+      const xValues = [...new Set(data.map(d => d[config.xAxisColumn]))];
+
+      const datasets = legends.map(legend => {
+        const legendData = xValues.map(xVal => {
+          const match = data.find(d => d[config.legendColumn] === legend && d[config.xAxisColumn] === xVal);
+          return match ? match[selectedIndex] : null;
+        });
+
+        return {
+          label: legend,
+          data: legendData,
+          fill: false,
+          borderColor: getColor(legend),
+          tension: 0.2
+        };
+      });
+
+      return { labels: xValues, datasets };
+    }
+
+    function getColor(label) {
+      const palette = [
+        '#4CAF50', '#2196F3', '#FFC107', '#E91E63', '#FF5722', '#3F51B5'
+      ];
+      let hash = 0;
+      for (let i = 0; i < label.length; i++) {
+        hash = label.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return palette[Math.abs(hash) % palette.length];
+    }
+
+    function renderChart(selectedIndex, frame = null) {
+      const { labels, datasets } = getChartData(rawData, selectedIndex);
+      fullChartData = { labels, datasets };
+
+      let slicedLabels = labels;
+      let slicedDatasets = datasets;
+
+      if (frame !== null) {
+        slicedLabels = labels.slice(0, frame + 1);
+        slicedDatasets = datasets.map(ds => ({
+          ...ds,
+          data: ds.data.slice(0, frame + 1)
+        }));
+      }
+
+      if (chart) chart.destroy();
+
+      chart = new Chart(chartCtx, {
+        type: 'line',
+        data: {
+          labels: slicedLabels,
+          datasets: slicedDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            title: {
+              display: true,
+              // text: `CPI - ${selectedIndex.replaceAll('_', ' ')}`
+              text: config.chartTitle
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: config.xAxisColumn
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Index Value'
+              }
+            }
+          }
+        }
+      });
+
+/*
+      chart = new Chart(chartCtx, {
+        type: 'line',
+        data: {
+          labels: slicedLabels,
+          datasets: slicedDatasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            title: {
+              display: true,
+              text: `CPI - ${selectedIndex.replaceAll('_', ' ')}`,
+              font: {
+                size: (ctx) => Math.max(ctx.chart.height / 20, 14)
+              }
+            },
+            legend: {
+              labels: {
+                font: {
+                  size: (ctx) => Math.max(ctx.chart.height / 25, 10)
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: config.xAxisColumn,
+                font: {
+                  size: (ctx) => Math.max(ctx.chart.height / 30, 10)
+                }
+              },
+              ticks: {
+                font: {
+                  size: (ctx) => Math.max(ctx.chart.height / 35, 9)
+                }
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Index Value',
+                font: {
+                  size: (ctx) => Math.max(ctx.chart.height / 30, 10)
+                }
+              },
+              ticks: {
+                font: {
+                  size: (ctx) => Math.max(ctx.chart.height / 35, 9)
+                }
+              }
+            }
+          }
+        }
+      });
+*/
+
+
+    }
+
+    // function startAnimation(selectedIndex) {
+    //   if (isAnimating) return;
+    //   isAnimating = true;
+    //   animateBtn.textContent = 'Stop Animation';
+
+    //   const totalFrames = fullChartData.labels.length;
+
+    //   animationInterval = setInterval(() => {
+    //     if (!isAnimating || currentFrame >= totalFrames) {
+    //       stopAnimation();
+    //       return;
+    //     }
+
+    //     renderChart(selectedIndex, currentFrame);
+    //     progressBar.style.width = `${(currentFrame / totalFrames) * 100}%`;
+    //     currentFrame++;
+    //   }, animationSpeed);
+    // }
+
+    function startAnimation(selectedIndex) {
+      if (isAnimating) return;
+      isAnimating = true;
+      animateBtn.textContent = 'Stop Animation';
+
+      // Always re-render and prepare fresh data before animation
+      renderChart(selectedIndex);
+      currentFrame = 0;
+      const totalFrames = fullChartData.labels.length;
+
+      animationInterval = setInterval(() => {
+        if (!isAnimating || currentFrame >= totalFrames) {
+          stopAnimation();
+          return;
+        }
+
+        renderChart(selectedIndex, currentFrame);
+        progressBar.style.width = `${(currentFrame / totalFrames) * 100}%`;
+        currentFrame++;
+      }, animationSpeed);
+    }
+
+
+
+
+    function stopAnimation() {
+      clearInterval(animationInterval);
+      isAnimating = false;
+      animateBtn.textContent = 'Start Animation';
+    }
+
+    // function resetChart() {
+    //   stopAnimation();
+    //   progressBar.style.width = '0%';
+    //   renderChart(yAxisSelect.value);
+    // }
+    function resetChart() {
+      stopAnimation();
+      progressBar.style.width = '0%';
+      currentFrame = 0;
+      renderChart(yAxisSelect.value);
+    }
+
+    function exportChart() {
+      const link = document.createElement('a');
+      link.download = 'cpi_chart.png';
+      link.href = chart.toBase64Image();
+      link.click();
+    }
+
+    async function init() {
+      const { data } = await loadCSVData(config.csvPath);
+      rawData = data;
+
+      populateDropdown();
+      renderChart(yAxisSelect.value = config.yAxisOptions[0]);
+
+      yAxisSelect.addEventListener('change', () => {
+        stopAnimation();
+        progressBar.style.width = '0%';
+        renderChart(yAxisSelect.value);
+      });
+
+      animateBtn.addEventListener('click', () => {
+        if (isAnimating) {
+          stopAnimation();
+        } else {
+          startAnimation(yAxisSelect.value);
+        }
+      });
+
+      resetBtn.addEventListener('click', resetChart);
+      exportBtn.addEventListener('click', exportChart);
+
+      // speedRange.addEventListener('input', () => {
+      //   animationSpeed = parseInt(speedRange.value);
+      //   speedValue.textContent = animationSpeed;
+      //   if (isAnimating) {
+      //     stopAnimation();
+      //     startAnimation(yAxisSelect.value);
+      //   }
+      // });
+
+      speedRange.addEventListener('input', () => {
+        animationSpeed = parseInt(speedRange.value);
+        speedValue.textContent = animationSpeed;
+
+        if (isAnimating) {
+          stopAnimation();
+          currentFrame = 0;
+          renderChart(yAxisSelect.value); // Ensure fresh chart
+          startAnimation(yAxisSelect.value); // Restart animation
+        }
+      });
+
+
+    }
+
+    // init();
+  </script>
+</body>
+</html>
