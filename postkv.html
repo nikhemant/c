@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Upload File and Config</title>
+</head>
+<body>
+  <h2>Upload File and Config</h2>
+
+  <label>Api Key: <input type="text" id="apikeyValue" value="apikey" /></label><br><br>
+  <label>Key: <input type="text" id="kvKey" value="number" /></label><br><br>
+  <label>Text Data:</label><br>
+  <textarea id="kvValue" rows="6" cols="50">JS Object</textarea><br><br>
+  <hr>
+  <label>File Key: <input type="text" id="r2Key" value="path" /></label><br><br>
+  <label>File Upload: <input type="file" id="fileInput" /></label><br><br>
+  
+  <button onclick="sendToWorker()">Submit</button>
+
+  <h3>Response:</h3>
+  <pre id="responseBox"></pre>
+
+  <script>
+    async function sendToWorker() {
+      const key = document.getElementById("kvKey").value.trim();
+      const value = document.getElementById("kvValue").value;
+      const apiKey = document.getElementById("apikeyValue").value; //"your-secret-key"; // Replace this with your actual key
+      
+      //https://charts-data-files-kv-json.nikhemant.workers.dev/?key=2&apikey=apikey
+      const url = `https://charts-data-files-kv-json.nikhemant.workers.dev/?key=${encodeURIComponent(key)}`;
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain",
+            "Authorization": "Bearer " + apiKey
+          },
+          body: value
+        });
+
+        const result = await response.json();
+        document.getElementById("responseBox").textContent = JSON.stringify(result, null, 2);
+      } catch (error) {
+        document.getElementById("responseBox").textContent = "Error: " + error;
+      }
+
+
+
+      const fileInput = document.getElementById("fileInput");
+      const r2Key = document.getElementById("r2Key").value;
+      
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file first.");
+        return;
+      }
+
+      // Use the file name as the key for R2
+      // const filekey = encodeURIComponent(r2Key + '/' + file.name);
+      const filekey = (r2Key + '/' + file.name);
+      console.log(filekey, file.name)
+      
+      try {
+        const response = await fetch(`https://charts-data-files-r2.nikhemant.workers.dev/${filekey}`, {
+          method: "PUT",
+          headers: {
+            // Add content-type so R2 can save metadata if you want
+            "Content-Type": file.type || "application/octet-stream",
+            "Authorization": "Bearer " + apiKey
+          },
+          body: file,
+        });
+
+        if (response.ok) {
+          document.getElementById("responseBox").textContent += `\nFile '${file.name}' uploaded successfully.`;
+          // alert(`File '${file.name}' uploaded successfully.`);
+        } else {
+          const text = await response.text();
+          document.getElementById("responseBox").textContent += `\nUpload failed: ${response.status} - ${text}`;
+          // alert(`Upload failed: ${response.status} - ${text}`);
+        }
+      } catch (err) {
+        document.getElementById("responseBox").textContent += `\nError uploading file: ${err.message}`;
+        // alert(`Error uploading file: ${err.message}`);
+      }
+    }
+
+
+
+
+/*  // Get using Authorization Token
+    fetch("https://your-worker-url.workers.dev/?key=myconfig", {
+      method: "GET",
+      headers: {
+        "Authorization": "Bearer your-secret-key"
+      }
+    })
+      .then(response => response.text())
+      .then(data => console.log(data))
+      .catch(error => console.error("Error:", error));
+*/
+  </script>
+</body>
+</html>
