@@ -298,6 +298,7 @@
       });
     }
 
+    /*
     function getChartData(data, selectedIndex) {
       const legends = [...new Set(data.map(d => d[config.legendColumn]))];
       const xValues = [...new Set(data.map(d => d[config.xAxisColumn]))];
@@ -319,6 +320,50 @@
 
       return { labels: xValues, datasets };
     }
+      */
+    function getChartData(data, selectedIndex) {
+      const legends = [...new Set(data.map(d => d[config.legendColumn]).filter(Boolean))];
+      const xValues = [...new Set(data.map(d => d[config.xAxisColumn]))];
+
+      let datasets;
+
+      if (legends.length === 0) {
+        // Fallback: no legends, treat all data as one series
+        const dataPoints = xValues.map(xVal => {
+          const match = data.find(d => d[config.xAxisColumn] === xVal);
+          return match ? match[selectedIndex] : null;
+        });
+
+        datasets = [{
+          label: "Data",
+          data: dataPoints,
+          fill: false,
+          borderColor: getColor("default"),
+          tension: 0.2
+        }];
+      } else {
+        // Normal grouped dataset by legends
+        datasets = legends.map(legend => {
+          const legendData = xValues.map(xVal => {
+            const match = data.find(d =>
+              d[config.legendColumn] === legend && d[config.xAxisColumn] === xVal
+            );
+            return match ? match[selectedIndex] : null;
+          });
+
+          return {
+            label: legend,
+            data: legendData,
+            fill: false,
+            borderColor: getColor(legend),
+            tension: 0.2
+          };
+        });
+      }
+
+      return { labels: xValues, datasets };
+    }
+
 
     function getColor(label) {
       const palette = [
