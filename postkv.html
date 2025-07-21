@@ -7,11 +7,13 @@
   <h2>Upload File and Config</h2>
 
   <label>Api Key: <input type="text" id="apikeyValue" value="apikey" /></label><br><br>
-  <label>Key: <input type="text" id="kvKey" value="number" /></label><br><br>
+  <label>Key: <input type="text" id="kvKey" value="number" /></label>
+  <button onclick="getFromWorker()">Get Key Data</button>  
+  <br><br>
   <label>Text Data:</label><br>
   <textarea id="kvValue" rows="6" cols="50">JS Object</textarea><br><br>
   <hr>
-  <label>File Key: <input type="text" id="r2Key" value="path" /></label><br><br>
+  <label>File Key: <input type="text" id="r2Key" value="data" /></label><br><br>
   <label>File Upload: <input type="file" id="fileInput" /></label><br><br>
   
   <button onclick="sendToWorker()">Submit</button>
@@ -87,18 +89,43 @@
 
 
 
+    async function getFromWorker() {
+      const key = document.getElementById("kvKey").value.trim();
+      const apiKey = document.getElementById("apikeyValue").value; //"your-secret-key"; // Replace this with your actual key
+      
+      //https://charts-data-files-kv-json.nikhemant.workers.dev/?key=2&apikey=apikey
+      const url = `https://charts-data-files-kv-json.nikhemant.workers.dev/?key=${encodeURIComponent(key)}`;
 
-/*  // Get using Authorization Token
-    fetch("https://your-worker-url.workers.dev/?key=myconfig", {
-      method: "GET",
-      headers: {
-        "Authorization": "Bearer your-secret-key"
+      try {
+          /*
+          // Get using Authorization Token
+          fetch("https://your-worker-url.workers.dev/?key=myconfig", {
+            method: "GET",
+            headers: {
+              "Authorization": "Bearer your-secret-key"
+            }
+          })
+            .then(response => response.text())
+            .then(data => console.log(data))
+            .catch(error => console.error("Error:", error));
+          */
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Authorization": "Bearer " + apiKey
+          }
+        });
+
+        const result = await response.text();
+        document.getElementById("responseBox").textContent = result;
+      } catch (error) {
+        document.getElementById("responseBox").textContent = "Error: " + error;
       }
-    })
-      .then(response => response.text())
-      .then(data => console.log(data))
-      .catch(error => console.error("Error:", error));
-*/
+    }
+
+
+
   </script>
 </body>
 </html>
