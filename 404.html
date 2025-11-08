@@ -1,3 +1,14 @@
+Add Agent Population (Consumer) 
+main -> space & network = Layout type = Random
+
+In Consumer : 
+State Chart = Enter -> Shopping -> Checkout -> Exit
+ transition -> timeout = uniform(1, 3) 
+state -> EntryAction = shapeBody.setFillColor(blue)
+
+graph -> dataset = count(consumers, c -> c.statechart.isStateActive(c.Enter)) 
+scale = 10
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
